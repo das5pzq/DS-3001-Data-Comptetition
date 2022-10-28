@@ -1,0 +1,105 @@
+---
+title: "DS_3001_Data_Comp"
+output: html_document
+date: "2022-10-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(caret)
+library(ROCR)
+library(MLmetrics)
+library(mltools)
+library(rpart.plot)
+```
+
+
+```{r cars}
+state_train = read.csv("~/DS-3001/data/states_all_2_training.csv")
+state_test = read.csv("~/DS-3001/data/test_set_public.csv")
+view(state_test)
+view(state_train)
+
+```
+
+```{r}
+str(state_train)
+str(state_test)
+view(state_train)
+#state_train <- subset(state_train, STATE != "CALIFORNIA")
+#state_train <- subset(state_train, STATE != "OREGON")
+sum(is.na(state_train))
+sum(is.na(state_test))
+view(state_test)
+state_train <- state_train[,-14]
+state_test <- state_test[,-14]
+view(state_test)
+train <- state_train[complete.cases(state_train),]
+test <- state_test[complete.cases(state_test),]
+train[sapply(train, is.character)] <- lapply(train[sapply(train, is.character)], as.factor)
+test[sapply(test, is.character)] <- lapply(test[sapply(test, is.character)], as.factor)
+levels(train$STATE)
+levels(test$STATE)
+test <- test[,-1]
+train <- train[,-1]
+str(train)
+str(test)
+view(test)
+
+```
+
+```{r}
+
+train$STATE <- fct_collapse(train$STATE, New_England = c("CONNECTICUT", "MAINE", "MASSACHUSETTS", "NEW_HAMPSHIRE", "RHODE_ISLAND", "VERMONT"),Mid_Atlantic = c("DELAWARE", "MARYLAND", "NEW_JERSEY", "NEW_YORK", "PENNSYLVANIA"), South = c("ALABAMA", "ARKANSAS", "FLORIDA", "GEORGIA", "KENTUCKY", "LOUISIANA", "MISSISSIPPI", "MISSOURI", "NORTH_CAROLINA", "SOUTH_CAROLINA", "TENNESSEE", "VIRGINIA", "WEST_VIRGINIA","DISTRICT_OF_COLUMBIA"), Midwest = c("ILLINOIS", "INDIANA", "IOWA", "KANSAS", "MICHIGAN", "MINNESOTA", "NEBRASKA", "NORTH_DAKOTA", "OHIO", "SOUTH_DAKOTA", "WISCONSIN"), Southwest = c("ARIZONA", "NEW_MEXICO", "OKLAHOMA", "TEXAS"), West = c("ALASKA", "COLORADO", "HAWAII", "IDAHO", "MONTANA", "NEVADA", "UTAH", "WASHINGTON", "WYOMING","CALIFORNIA","OREGON"))
+
+test$STATE <- fct_collapse(test$STATE, New_England = c("CONNECTICUT", "MAINE", "MASSACHUSETTS", "NEW_HAMPSHIRE", "RHODE_ISLAND", "VERMONT"),Mid_Atlantic = c("DELAWARE", "MARYLAND", "NEW_JERSEY", "NEW_YORK", "PENNSYLVANIA"), South = c("ALABAMA", "ARKANSAS", "FLORIDA", "GEORGIA", "KENTUCKY", "LOUISIANA", "MISSISSIPPI", "MISSOURI", "NORTH_CAROLINA", "SOUTH_CAROLINA", "TENNESSEE", "VIRGINIA", "WEST_VIRGINIA"), Midwest = c("ILLINOIS", "INDIANA", "IOWA", "KANSAS", "MICHIGAN", "MINNESOTA", "NEBRASKA", "NORTH_DAKOTA", "OHIO", "SOUTH_DAKOTA", "WISCONSIN","DISTRICT_OF_COLUMBIA"), Southwest = c("ARIZONA", "NEW_MEXICO", "OKLAHOMA", "TEXAS"), West = c("ALASKA", "CALIFORNIA","COLORADO", "HAWAII", "IDAHO", "MONTANA", "NEVADA", "UTAH","OREGON", "WASHINGTON", "WYOMING"))
+```
+
+```{r}
+view(train)
+features <- train[,-21]#dropping 21 because it's target variable. 
+View(features)
+target <- data_frame(Reading_Score=train$AVG_READING_4_SCORE)
+
+
+str(target)
+class(target)
+
+view(target)
+fitControl <- trainControl(method = "repeatedcv",
+                          number = 35,
+                          repeats = 7) 
+
+tree.grid <- expand.grid(maxdepth=c(3:20))
+
+set.seed(1984)
+score_mdl_r <- train(x=features,
+                y=target$Reading_Score,
+                method="rpart2",
+                trControl=fitControl,
+                metric="RMSE")
+score_mdl_r
+
+score_mdl_r_1 <- train(x=features,
+                y=target$Reading_Score,
+                method="rpart2",#type of model uses maxdepth to select a model
+                trControl=fitControl,#previously created
+                tuneGrid=tree.grid,#expanded grid
+                metric="RMSE")
+
+score_mdl_r_1
+
+plot(score_mdl_r)
+varImp(score_mdl_r_1)
+view(test)
+pred_test_reg <- predict(score_mdl_r_1,test)
+
+view(as_tibble(pred_test_reg))
+view(target$Reading_Score)
+postResample(pred = pred_test_reg, obs = target$Reading_Score)
+
+```
